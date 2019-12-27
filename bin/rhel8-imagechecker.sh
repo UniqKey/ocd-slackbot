@@ -2,8 +2,7 @@
 set -Eeuo pipefail
 
 oc() { 
-    bin/oc_wrapper.sh "$@"
-    if [[ "$?" != 0 ]]; then
+    if ! bin/oc_wrapper.sh "$@"; then
         >&2 echo "ERROR oc wrapper returned none zero status"
     fi
 }
@@ -11,21 +10,21 @@ oc() {
 IMAGE_STREAM="$1"
 
 if [ -z "$IMAGE_STREAM" ]; then
-    >&2 echo "ERROR Please provide image stream as first parameter (e.g., php-71-rhel7)"
+    >&2 echo "ERROR Please provide image stream as first parameter (e.g., nodejs-12)"
 fi
 
 if [ -z "$BUILD_PROJECT" ]; then
     >&2 echo "ERROR Please provide BUILD_PROJECT as an environment variable (e.g., 'your-eng')"
 fi
 
-REDHAT_REGISTRY_API="https://registry.access.redhat.com/v2/rhscl/$IMAGE_STREAM"
-REDHAT_REGISTRY_URL="registry.access.redhat.com/rhscl/$IMAGE_STREAM"
+REDHAT_REGISTRY_API="https://registry.redhat.io/rhel8/$IMAGE_STREAM"
+REDHAT_REGISTRY_URL="registry.access.redhat.io/rhel8/$IMAGE_STREAM"
 
 #echo REDHAT_REGISTRY_URL=$REDHAT_REGISTRY_URL
 #echo IMAGE_STREAM=$IMAGE_STREAM
 
 # Step1: What do we actually have locally? 
-oc export is -o json -n $BUILD_PROJECT | /opt/app-root/jq -r '."items"[] | select(.metadata.name=="'$IMAGE_STREAM'") | .spec.tags[].name'  | grep -v latest > /tmp/local.$$
+oc export is -o json -n "$BUILD_PROJECT" | /opt/app-root/jq -r '."items"[] | select(.metadata.name=="'$IMAGE_STREAM'") | .spec.tags[].name'  | grep -v latest > /tmp/local.$$
 
 # ( echo "local tags are: " && cat /tmp/local.$$  ) || true
 
@@ -34,7 +33,7 @@ if [[ ! -s /tmp/local.$$ ]]; then
 fi
 
 # Step2: What are the tags that match the upstream “latest” version?
-wget -q  -O - $REDHAT_REGISTRY_API/tags/list | /opt/app-root/jq -r '."tags"[]' | while read TAG ; do echo $TAG ; wget --header="Accept: application/vnd.docker.distribution.manifest.v2+json" -q  -O - $REDHAT_REGISTRY_API/manifests/$TAG | /opt/app-root/jq '.config.digest // "null"' ; done | paste -d, - - | awk 'BEGIN{FS=OFS=","}{map[$1] = $2;rmap[$2][$1] = $1;}END{for (key in rmap[map["latest"]]) {print key}}' | grep -v latest > /tmp/upstream.$$
+wget -q  -O - "$REDHAT_REGISTRY_API/tags/list" | /opt/app-root/jq -r '."tags"[]' | while read -r TAG ; do echo "$TAG" ; wget --header="Accept: application/vnd.docker.distribution.manifest.v2+json" -q  -O - "$REDHAT_REGISTRY_API/manifests/$TAG" | /opt/app-root/jq '.config.digest // "null"' ; done | paste -d, - - | awk 'BEGIN{FS=OFS=","}{map[$1] = $2;rmap[$2][$1] = $1;}END{for (key in rmap[map["latest"]]) {print key}}' | grep -v latest > /tmp/upstream.$$
 
 # (echo "upstream tags are: " && cat /tmp/upstream.$$) || true
 
@@ -44,8 +43,7 @@ awk 'NR==FNR{a[$1];next} {delete a[$1] } END{for (key in a) print key }' /tmp/up
 #cat /tmp/missing.$$
 
 # Step4: Whats the command to replace them? 
-cat /tmp/missing.$$ | \
-while read TAG; do \
+while read -r TAG; do 
     echo "# Run the following to import the missing image $TAG:"
     echo '```'
     echo "oc -n $BUILD_PROJECT import-image $IMAGE_STREAM:$TAG --from='$REDHAT_REGISTRY_URL:$TAG' --confirm"
@@ -54,14 +52,14 @@ while read TAG; do \
     echo '```'
     echo "oc tag $BUILD_PROJECT/$IMAGE_STREAM:$TAG $BUILD_PROJECT/$IMAGE_STREAM:latest"
     echo '```'
-done > /tmp/import.$$
+done < /tmp/missing.$$ > /tmp/import.$$
 
 if [ -s /tmp/missing.$$ ]
 then
     echo "# The image stream $IMAGE_STREAM is missing one or more images marked as 'latest' upstream."
     cat /tmp/import.$$
 else
-    UPSTREAM=$(cat /tmp/upstream.$$ | paste -sd "," -)
+    UPSTREAM=$(paste -sd "," - < /tmp/upstream.$$)
     echo "The image stream $IMAGE_STREAM is up to date with latest upstream tags $UPSTREAM"
 fi
 

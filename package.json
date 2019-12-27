@@ -9,20 +9,18 @@
     "prepare": "npm run snyk-protect"
   },
   "dependencies": {
-    "body-parser": "^1.19.0",
-    "botkit": "^4.6.1",
-    "botkit-storage-mongo": "^1.0.7",
-    "cookie-parser": "^1.4.4",
+    "body-parser": "^1.15.2",
+    "botkit": "^0.7.0",
+    "botkit-storage-mongo": "^1.0.6",
+    "cookie-parser": "^1.4.3",
     "debug": "^2.3.3",
-    "express": "^4.17.1",
-    "express-hbs": "^2.3.0",
-    "handlebars": "^4.5.3",
-    "mongodb": "^3.4.1",
+    "express": "^4.14.0",
+    "express-hbs": "^1.0.5",
     "node-env-file": "^0.1.8",
     "querystring": "^0.2.0",
     "request": "^2.79.0",
-    "snyk": "^1.137.0",
-    "wordfilter": "^0.2.6"
+    "wordfilter": "^0.2.6",
+    "snyk": "^1.137.0"
   },
   "devDependencies": {},
   "repository": {

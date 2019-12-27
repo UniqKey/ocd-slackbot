@@ -1,11 +1,13 @@
 #!/bin/bash
 
+set -euxo pipefail
+
 s2i --copy \
-    --incremental=true \
+    --incremental=false \
     build \
     $(git remote show origin | fgrep 'Fetch URL' | awk '{print $NF}') \
     --ref=master \
-    registry.access.redhat.com/rhscl/nodejs-8-rhel7:latest \
+    registry.redhat.io/ubi8/nodejs-12:latest \
     ocd-openshiftbot
 
 

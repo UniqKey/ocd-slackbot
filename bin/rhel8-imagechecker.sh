@@ -17,7 +17,7 @@ if [ -z "$BUILD_PROJECT" ]; then
     >&2 echo "ERROR Please provide BUILD_PROJECT as an environment variable (e.g., 'your-eng')"
 fi
 
-REDHAT_REGISTRY_API="https://registry.redhat.io/rhel8/$IMAGE_STREAM"
+REDHAT_REGISTRY_API="https://registry.redhat.io/v2/rhel8/$IMAGE_STREAM"
 REDHAT_REGISTRY_URL="registry.access.redhat.io/rhel8/$IMAGE_STREAM"
 
 #echo REDHAT_REGISTRY_URL=$REDHAT_REGISTRY_URL

@@ -18,7 +18,7 @@ if [ -z "$BUILD_PROJECT" ]; then
     >&2 echo "ERROR Please provide BUILD_PROJECT as an environment variable (e.g., 'your-eng')"
 fi
 
-REDHAT_REGISTRY_API="https://registry.access.redhat.com/v2/rhscl/$IMAGE_STREAM"
+REDHAT_REGISTRY_API="https://registry.redhat.io/v2/rhscl/$IMAGE_STREAM"
 REDHAT_REGISTRY_URL="registry.access.redhat.com/rhscl/$IMAGE_STREAM"
 
 #echo REDHAT_REGISTRY_URL=$REDHAT_REGISTRY_URL
@@ -33,8 +33,11 @@ if [[ ! -s /tmp/local.$$ ]]; then
      (>&2 echo "ERROR could not get the local tags using oc export is -o json -n $BUILD_PROJECT")
 fi
 
-# Step2: What are the tags that match the upstream “latest” version?
-wget -q  -O - $REDHAT_REGISTRY_API/tags/list | /opt/app-root/jq -r '."tags"[]' | while read TAG ; do echo $TAG ; wget --header="Accept: application/vnd.docker.distribution.manifest.v2+json" -q  -O - $REDHAT_REGISTRY_API/manifests/$TAG | /opt/app-root/jq '.config.digest // "null"' ; done | paste -d, - - | awk 'BEGIN{FS=OFS=","}{map[$1] = $2;rmap[$2][$1] = $1;}END{for (key in rmap[map["latest"]]) {print key}}' | grep -v latest > /tmp/upstream.$$
+# Step 2.0: Get an oAuth token based on a service account username and password https://access.redhat.com/articles/3560571
+TOKEN=$(curl --silent -u "$REGISTRY_USER":"$REGISTRY_PASSWORD" "https://sso.redhat.com/auth/realms/rhcc/protocol/redhat-docker-v2/auth?service=docker-registry&client_id=curl&scope=repository:rhel:pull" |  /opt/app-root/jq --raw-output '.token')
+
+# Step 2.1: What are the tags that match the upstream “latest” version?
+wget -q --header="Accept: application/json" --header="Authorization: Bearer $TOKEN" -O - "$REDHAT_REGISTRY_API/tags/list" | /opt/app-root/jq -r '."tags"[]' | while read -r TAG ; do echo "$TAG" ; wget --header="Authorization: Bearer $TOKEN" --header="Accept: application/vnd.docker.distribution.manifest.v2+json" -q  -O - "$REDHAT_REGISTRY_API/manifests/$TAG" | /opt/app-root/jq '.config.digest // "null"' ; done | paste -d, - - | awk 'BEGIN{FS=OFS=","}{map[$1] = $2;rmap[$2][$1] = $1;}END{for (key in rmap[map["latest"]]) {print key}}' | grep -v latest > /tmp/upstream.$$
 
 # (echo "upstream tags are: " && cat /tmp/upstream.$$) || true
 

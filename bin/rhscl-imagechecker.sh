@@ -19,7 +19,7 @@ if [ -z "$BUILD_PROJECT" ]; then
 fi
 
 REDHAT_REGISTRY_API="https://registry.redhat.io/v2/rhscl/$IMAGE_STREAM"
-REDHAT_REGISTRY_URL="registry.access.redhat.com/rhscl/$IMAGE_STREAM"
+REDHAT_REGISTRY_URL="registry.redhat.io/rhscl/$IMAGE_STREAM"
 
 #echo REDHAT_REGISTRY_URL=$REDHAT_REGISTRY_URL
 #echo IMAGE_STREAM=$IMAGE_STREAM
